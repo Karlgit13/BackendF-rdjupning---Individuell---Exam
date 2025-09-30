@@ -1,15 +1,26 @@
 $API = "https://cfw0tq99e4.execute-api.eu-north-1.amazonaws.com"
 $email = "test@example.com"; $pw = "Passw0rd!"
 
-# 1) Login → token
+# 1 Login → token
 $token = (irm -Method POST "$API/auth/login" -ContentType "application/json" -Body (@{email=$email;password=$pw} | ConvertTo-Json)).token
 
-# 2) Skapa quiz
+# 2 Skapa quiz
 $quiz = irm -Method POST "$API/quizzes" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"name":"Göteborg-rundan"}'
 $quizId = $quiz.quizId
 
-# 3) Lägg fråga
-irm -Method POST "$API/quizzes/$quizId/questions" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"question":"Vad heter Avenyn?","answer":"Kungsportsavenyn","lat":57.7,"lng":11.97}'
+# 3 Skapa quiz
+$quiz   = irm -Method POST "$API/quizzes" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"name":"Göteborg-rundan"}'
+$quizId = $quiz.quizId
+$quiz | ConvertTo-Json
+$quizId
+
+# 4 Ta bort quiz och verifiera
+# anta $API, $token, $quizId finns
+irm -Method DELETE "$API/quizzes/$quizId" -Headers @{Authorization="Bearer $token"}
+# ska ge 204 No Content
+
+# verifiera borttagen
+irm "$API/quizzes/$quizId"   # ska ge quiz:null och tom questions
 
 # 4) Hämta quiz + frågor
 irm "$API/quizzes/$quizId" | ConvertTo-Json
