@@ -1,0 +1,24 @@
+$API = "https://cfw0tq99e4.execute-api.eu-north-1.amazonaws.com"
+$email = "test@example.com"; $pw = "Passw0rd!"
+
+# 1) Login → token
+$token = (irm -Method POST "$API/auth/login" -ContentType "application/json" -Body (@{email=$email;password=$pw} | ConvertTo-Json)).token
+
+# 2) Skapa quiz
+$quiz = irm -Method POST "$API/quizzes" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"name":"Göteborg-rundan"}'
+$quizId = $quiz.quizId
+
+# 3) Lägg fråga
+irm -Method POST "$API/quizzes/$quizId/questions" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"question":"Vad heter Avenyn?","answer":"Kungsportsavenyn","lat":57.7,"lng":11.97}'
+
+# 4) Hämta quiz + frågor
+irm "$API/quizzes/$quizId" | ConvertTo-Json
+
+# 5) Registrera poäng
+irm -Method POST "$API/quizzes/$quizId/scores" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"score":42}'
+
+# 6) Topplista
+irm "$API/quizzes/$quizId/leaderboard?limit=5" | ConvertTo-Json
+
+# 7) Lista alla quiz
+irm "$API/quizzes" | ConvertTo-Json
