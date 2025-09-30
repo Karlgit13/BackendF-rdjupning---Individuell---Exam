@@ -1,16 +1,190 @@
-# "org" ensures this Service is used with the correct Serverless Framework Access Key.
-org: karljs
-# "service" is the name of this project. This will also be added to your AWS resource names.
-service: QuizTopiaExam
+service: quiztopia-api
+frameworkVersion: "4"
 
 provider:
   name: aws
   runtime: nodejs20.x
   region: eu-north-1
+  stage: dev
+  profile: quiztopia
   httpApi:
     cors: true
+  environment:
+    USERS_TABLE: ${sls:stage}-Users
+    QUIZZES_TABLE: ${sls:stage}-Quizzes
+    QUESTIONS_TABLE: ${sls:stage}-Questions
+    SCORES_TABLE: ${sls:stage}-Scores
+    JWT_PARAM_NAME: /quiztopia/${sls:stage}/JWT_SECRET
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.USERS_TABLE}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.QUIZZES_TABLE}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.QUESTIONS_TABLE}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.SCORES_TABLE}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.SCORES_TABLE}/index/ScoresByQuiz
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.USERS_TABLE}/index/EmailIndex
+        - Effect: Allow
+          Action: ssm:GetParameter
+          Resource:
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/quiztopia/${sls:stage}/JWT_SECRET
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "*"
 
 functions:
+  health:
+    handler: src/health.root
+    events:
+      - httpApi:
+          path: /
+          method: GET
+
+  signup:
+    handler: src/auth.signup
+    events:
+      - httpApi:
+          path: /auth/signup
+          method: POST
+
   login:
     handler: src/auth.login
-    events: [{ httpApi: { path: /auth/login, method: POST } }]
+    events:
+      - httpApi:
+          path: /auth/login
+          method: POST
+
+  listQuizzes:
+    handler: src/quizzes.list
+    events:
+      - httpApi:
+          path: /quizzes
+          method: GET
+
+  getQuizWithQuestions:
+    handler: src/quizzes.get
+    events:
+      - httpApi:
+          path: /quizzes/{quizId}
+          method: GET
+
+  createQuiz:
+    handler: src/quizzes.create
+    events:
+      - httpApi:
+          path: /quizzes
+          method: POST
+
+  deleteQuiz:
+    handler: src/quizzes.remove
+    events:
+      - httpApi:
+          path: /quizzes/{quizId}
+          method: DELETE
+
+  addQuestion:
+    handler: src/questions.add
+    events:
+      - httpApi:
+          path: /quizzes/{quizId}/questions
+          method: POST
+
+  registerScore:
+    handler: src/scores.register
+    events:
+      - httpApi:
+          path: /quizzes/{quizId}/scores
+          method: POST
+
+  getLeaderboard:
+    handler: src/scores.leaderboard
+    events:
+      - httpApi:
+          path: /quizzes/{quizId}/leaderboard
+          method: GET
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.USERS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: EmailIndex
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+            Projection: { ProjectionType: ALL }
+
+    QuizzesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.QUIZZES_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: quizId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: quizId
+            KeyType: HASH
+
+    QuestionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.QUESTIONS_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: quizId
+            AttributeType: S
+          - AttributeName: questionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: quizId
+            KeyType: HASH
+          - AttributeName: questionId
+            KeyType: RANGE
+
+    ScoresTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.SCORES_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: quizId
+            AttributeType: S
+          - AttributeName: scoreSort
+            AttributeType: N
+        KeySchema:
+          - AttributeName: quizId
+            KeyType: HASH
+          - AttributeName: scoreSort
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: ScoresByQuiz
+            KeySchema:
+              - AttributeName: quizId
+                KeyType: HASH
+              - AttributeName: scoreSort
+                KeyType: RANGE
+            Projection: { ProjectionType: ALL }

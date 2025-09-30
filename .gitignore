@@ -1,2 +1,6 @@
 node_modules
 .serverless
+.env
+npm-debug.log*
+.DS_Store
+.vscode/
