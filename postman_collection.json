@@ -1,0 +1,127 @@
+{
+  "info": {
+    "name": "Quiztopia API (dev)",
+    "_postman_id": "quiztopia-dev-collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/" }
+    },
+    {
+      "name": "Signup",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"test@example.com\",\"password\":\"Passw0rd!\"}"
+        },
+        "url": "{{baseUrl}}/auth/signup"
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"test@example.com\",\"password\":\"Passw0rd!\"}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (j && j.token) pm.environment.set('token', j.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create quiz",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"name\":\"Göteborg-rundan\"}" },
+        "url": "{{baseUrl}}/quizzes"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const j = pm.response.json();",
+              "if (j && j.quizId) pm.environment.set('quizId', j.quizId);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "List quizzes",
+      "request": { "method": "GET", "url": "{{baseUrl}}/quizzes" }
+    },
+    {
+      "name": "Get quiz + questions",
+      "request": { "method": "GET", "url": "{{baseUrl}}/quizzes/{{quizId}}" }
+    },
+    {
+      "name": "Add question",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"question\":\"Vad heter Avenyn?\",\"answer\":\"Kungsportsavenyn\",\"lat\":57.7,\"lng\":11.97}"
+        },
+        "url": "{{baseUrl}}/quizzes/{{quizId}}/questions"
+      }
+    },
+    {
+      "name": "Register score",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"score\":42}" },
+        "url": "{{baseUrl}}/quizzes/{{quizId}}/scores"
+      }
+    },
+    {
+      "name": "Leaderboard",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/quizzes/{{quizId}}/leaderboard?limit=5"
+      }
+    },
+    {
+      "name": "Delete quiz",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/quizzes/{{quizId}}"
+      }
+    }
+  ]
+}

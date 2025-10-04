@@ -1,0 +1,14 @@
+{
+  "name": "Quiztopia dev",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "https://cfw0tq99e4.execute-api.eu-north-1.amazonaws.com",
+      "type": "default"
+    },
+    { "key": "token", "value": "", "type": "default" },
+    { "key": "quizId", "value": "", "type": "default" }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_using": "manual"
+}
