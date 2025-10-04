@@ -1,35 +1,71 @@
-$API = "https://cfw0tq99e4.execute-api.eu-north-1.amazonaws.com"
-$email = "test@example.com"; $pw = "Passw0rd!"
+# ===== Quiztopia API – PowerShell TESTER =====
+$API   = "https://cfw0tq99e4.execute-api.eu-north-1.amazonaws.com"
+$email = "test@example.com"
+$pw    = "Passw0rd!"
+$ErrorActionPreference = "Stop"
+### Testsekvens
 
-# 1 Login → token
-$token = (irm -Method POST "$API/auth/login" -ContentType "application/json" -Body (@{email=$email;password=$pw} | ConvertTo-Json)).token
+
+
+# 0 Health
+irm "$API/" | ConvertTo-Json
+### Funkar
+
+
+
+# 1 Login, annars signup + login
+function LoginOrSignup([string]$e,[string]$p){
+  try {
+    return (irm -Method POST "$API/auth/login" -ContentType "application/json" -Body (@{ email=$e; password=$p } | ConvertTo-Json)).token
+  } catch {
+    $null = irm -Method POST "$API/auth/signup" -ContentType "application/json" -Body (@{ email=$e; password=$p } | ConvertTo-Json)
+    return (irm -Method POST "$API/auth/login" -ContentType "application/json" -Body (@{ email=$e; password=$p } | ConvertTo-Json)).token
+  }
+}
+$token = LoginOrSignup $email $pw
+$auth  = @{ Authorization = "Bearer $token" }
+### Funkar
+
+
 
 # 2 Skapa quiz
-$quiz = irm -Method POST "$API/quizzes" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"name":"Göteborg-rundan"}'
+$quiz   = irm -Method POST "$API/quizzes" -Headers $auth -ContentType "application/json" -Body (@{ name = "Göteborg-rundan" } | ConvertTo-Json)
 $quizId = $quiz.quizId
-
-# 3 Skapa quiz
-$quiz   = irm -Method POST "$API/quizzes" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"name":"Göteborg-rundan"}'
-$quizId = $quiz.quizId
-$quiz | ConvertTo-Json
 $quizId
+### Funkar
 
-# 4 Ta bort quiz och verifiera
-# anta $API, $token, $quizId finns
-irm -Method DELETE "$API/quizzes/$quizId" -Headers @{Authorization="Bearer $token"}
-# ska ge 204 No Content
 
-# verifiera borttagen
-irm "$API/quizzes/$quizId"   # ska ge quiz:null och tom questions
+# 3 Lägg fråga
+irm -Method POST "$API/quizzes/$quizId/questions" -Headers $auth -ContentType "application/json" -Body (@{
+  question = "Vad heter Avenyn?"
+  answer   = "Kungsportsavenyn"
+  lat      = 57.7
+  lng      = 11.97
+} | ConvertTo-Json)
+### Funkar
 
-# 4) Hämta quiz + frågor
-irm "$API/quizzes/$quizId" | ConvertTo-Json
 
-# 5) Registrera poäng
-irm -Method POST "$API/quizzes/$quizId/scores" -Headers @{Authorization="Bearer $token"} -ContentType "application/json" -Body '{"score":42}'
+# 4 Hämta quiz + frågor
+irm "$API/quizzes/$quizId" | ConvertTo-Json -Depth 5
+#### Funkar
 
-# 6) Topplista
+
+# 5 Registrera poäng
+$null = irm -Method POST "$API/quizzes/$quizId/scores" -Headers $auth -ContentType "application/json" -Body (@{ score = 42 } | ConvertTo-Json)
+### Funkar
+
+
+# 6 Topplista
 irm "$API/quizzes/$quizId/leaderboard?limit=5" | ConvertTo-Json
+#### Funkar
 
-# 7) Lista alla quiz
+
+# 7 Lista alla quiz
 irm "$API/quizzes" | ConvertTo-Json
+#### Funkar
+
+
+# 8 Ta bort quiz och verifiera
+irm -Method DELETE "$API/quizzes/$quizId" -Headers $auth -ContentType "application/json" -Body '{}'
+irm "$API/quizzes/$quizId" | ConvertTo-Json
+#### Funkar

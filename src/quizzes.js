@@ -46,5 +46,5 @@ export const remove = withAuth(async (event) => {
     if (q.Item.ownerId !== event.user.sub) return json(403, { error: "forbidden" });
 
     await ddb.send(new DeleteCommand({ TableName: tables.quizzes, Key: { quizId } }));
-    return json(204, {});
+    return { statusCode: 204, headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "*" }, body: "" };
 });
