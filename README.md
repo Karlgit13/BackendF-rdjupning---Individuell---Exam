@@ -70,22 +70,22 @@ GET / eller /health → { ok: true, service, time }
 
 ## Datamodell (DynamoDB)
 
-# Users
+#### Users
 
 PK: userId
 GSI: EmailIndex(email)
 
-# Quizzes
+#### Quizzes
 
 PK: quizId
 Fält: ownerId, name, createdAt
 
-# Questions
+#### Questions
 
 PK: quizId
 SK: questionId
 
-# Scores
+#### Scores
 
 PK: quizId
 SK: scoreSort (999999 - score)
@@ -93,12 +93,12 @@ GSI: ScoresByQuiz(quizId, scoreSort)
 
 ## Postman
 
-# Importera:
+#### Importera:
 
 postman_collection.json
 postman_environment.json
 
-# Körordning:
+#### Körordning:
 
 Login → sätter {{token}}
 Create quiz → sätter {{quizId}}
