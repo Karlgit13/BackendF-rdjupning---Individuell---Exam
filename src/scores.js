@@ -18,8 +18,12 @@ export const register = withAuth(async (event) => {
 });
 
 export const leaderboard = async (event) => {
-    const quizId = event.pathParameters?.quizId;
-    const limit = Number(event.queryStringParameters?.limit || 10);
+    const qs = event.queryStringParameters || {};
+    const quizId = qs.quizId || event.pathParameters?.quizId; // query > path
+    if (!quizId) return json(400, { error: "quizId required" });
+
+    const limit = Number(qs.limit || 10);
+
     const out = await ddb.send(new QueryCommand({
         TableName: tables.scores,
         IndexName: "ScoresByQuiz",
@@ -28,5 +32,8 @@ export const leaderboard = async (event) => {
         Limit: limit,
         ScanIndexForward: true
     }));
-    return json(200, (out.Items || []).map(i => ({ userId: i.userId, score: i.score, at: i.createdAt })));
+
+    return json(200, (out.Items || []).map(i => ({
+        quizId: i.quizId, userId: i.userId, score: i.score, at: i.createdAt
+    })));
 };
