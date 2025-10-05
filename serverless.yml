@@ -9,12 +9,14 @@ provider:
   profile: quiztopia
   httpApi:
     cors: true
+
   environment:
     USERS_TABLE: ${sls:stage}-Users
     QUIZZES_TABLE: ${sls:stage}-Quizzes
     QUESTIONS_TABLE: ${sls:stage}-Questions
     SCORES_TABLE: ${sls:stage}-Scores
     JWT_PARAM_NAME: /quiztopia/${sls:stage}/JWT_SECRET
+
   iam:
     role:
       statements:
