@@ -1,4 +1,4 @@
-import { PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { PutCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, tables } from "./lib/db.js";
 import { json } from "./lib/http.js";
 import { withAuth } from "./lib/requireAuth.js";
@@ -19,21 +19,57 @@ export const register = withAuth(async (event) => {
 
 export const leaderboard = async (event) => {
     const qs = event.queryStringParameters || {};
-    const quizId = qs.quizId || event.pathParameters?.quizId; // query > path
-    if (!quizId) return json(400, { error: "quizId required" });
-
     const limit = Number(qs.limit || 10);
+    const all = String(qs.all || "").toLowerCase() === "true";
 
-    const out = await ddb.send(new QueryCommand({
-        TableName: tables.scores,
-        IndexName: "ScoresByQuiz",
-        KeyConditionExpression: "quizId = :q",
-        ExpressionAttributeValues: { ":q": quizId },
-        Limit: limit,
-        ScanIndexForward: true
+    // Standard: leaderboard för ett quiz
+    if (!all) {
+        const quizId = qs.quizId || event.pathParameters?.quizId;
+        if (!quizId) return json(400, { error: "quizId required" });
+
+        const out = await ddb.send(new QueryCommand({
+            TableName: tables.scores,
+            IndexName: "ScoresByQuiz",
+            KeyConditionExpression: "quizId = :q",
+            ExpressionAttributeValues: { ":q": quizId },
+            Limit: limit,
+            ScanIndexForward: true    // högsta poäng först pga inverterad scoreSort
+        }));
+
+        return json(200, (out.Items || []).map(i => ({
+            quizId: i.quizId, userId: i.userId, score: i.score, at: i.createdAt
+        })));
+    }
+
+    // Alla quiz: top N per quiz
+    const quizzes = [];
+    let last;
+    do {
+        const page = await ddb.send(new ScanCommand({
+            TableName: tables.quizzes,
+            ProjectionExpression: "quizId, #n",
+            ExpressionAttributeNames: { "#n": "name" },
+            ExclusiveStartKey: last
+        }));
+        quizzes.push(...(page.Items || []));
+        last = page.LastEvaluatedKey;
+    } while (last);
+
+    const tops = await Promise.all(quizzes.map(async q => {
+        const res = await ddb.send(new QueryCommand({
+            TableName: tables.scores,
+            IndexName: "ScoresByQuiz",
+            KeyConditionExpression: "quizId = :q",
+            ExpressionAttributeValues: { ":q": q.quizId },
+            Limit: limit,
+            ScanIndexForward: true
+        }));
+        return {
+            quizId: q.quizId,
+            name: q.name,
+            top: (res.Items || []).map(i => ({ userId: i.userId, score: i.score, at: i.createdAt }))
+        };
     }));
 
-    return json(200, (out.Items || []).map(i => ({
-        quizId: i.quizId, userId: i.userId, score: i.score, at: i.createdAt
-    })));
+    return json(200, tops);
 };

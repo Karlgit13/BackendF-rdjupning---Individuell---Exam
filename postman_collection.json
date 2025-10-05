@@ -108,7 +108,7 @@
       "name": "Leaderboard",
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/quizzes/{{quizId}}/leaderboard?limit=5"
+        "url": "{{baseUrl}}/quizzes/_/leaderboard?all=true&limit=5"
       }
     },
     {
