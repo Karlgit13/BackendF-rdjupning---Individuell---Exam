@@ -1,4 +1,7 @@
-// src/quizzes.js
+// Den här filen innehåller all logik för att hantera quiz – att skapa, hämta, lista och ta bort.
+// Här används flera DynamoDB-kommandon, och vissa funktioner är skyddade med withAuth
+// för att bara tillåta ägaren att skapa eller ta bort sina egna quiz.
+
 import {
     PutCommand,
     GetCommand,
@@ -12,7 +15,9 @@ import { v4 as uuid } from "uuid";
 import { json } from "./lib/http.js";
 import { withAuth } from "./lib/requireAuth.js";
 
-/* LISTA ALLA QUIZ */
+// Hämtar alla quiz i databasen. Jag använder Scan för att läsa ut allt från tabellen,
+// men bara vissa fält (quizId, name, ownerId) för att hålla svaret lättviktigt.
+// Den här funktionen kräver inte inloggning.
 export const list = async () => {
     const res = await ddb.send(
         new ScanCommand({
@@ -24,7 +29,8 @@ export const list = async () => {
     return json(200, res.Items || []);
 };
 
-/* HÄMTA QUIZ + FRÅGOR */
+// Hämtar ett specifikt quiz samt alla dess frågor.
+// Först läses själva quizet, sedan görs en Query på Questions-tabellen för att hämta alla frågor kopplade till quizId.
 export const get = async (event) => {
     const quizId = event.pathParameters?.quizId;
     if (!quizId) return json(400, { error: "quizId required" });
@@ -47,7 +53,9 @@ export const get = async (event) => {
     });
 };
 
-/* SKAPA QUIZ */
+// Skapar ett nytt quiz som tillhör den inloggade användaren.
+// Jag använder withAuth för att bara tillåta inloggade användare.
+// Ett unikt quizId genereras med UUID, och quizet sparas i tabellen med namn och skapandedatum.
 export const create = withAuth(async (event) => {
     const { name } = event.body || {};
     if (!name) return json(400, { error: "name required" });
@@ -68,6 +76,9 @@ export const create = withAuth(async (event) => {
 });
 
 /* intern helper: batch delete med retry av UnprocessedItems */
+// Hjälpfunktion som används vid borttagning av quiz.
+// DynamoDB kan ibland inte radera alla poster direkt (UnprocessedItems).
+// Den här funktionen kör då om begäran tills alla poster är borttagna.
 async function batchDelete(tableName, keys) {
     for (let i = 0; i < keys.length; i += 25) {
         const chunk = keys.slice(i, i + 25).map((Key) => ({
@@ -80,7 +91,7 @@ async function batchDelete(tableName, keys) {
         let un = resp.UnprocessedItems?.[tableName] || [];
 
         while (un.length) {
-            await new Promise((r) => setTimeout(r, 120)); // backoff kort
+            await new Promise((r) => setTimeout(r, 120)); // liten paus mellan försöken
             resp = await ddb.send(
                 new BatchWriteCommand({ RequestItems: { [tableName]: un } })
             );
@@ -89,7 +100,12 @@ async function batchDelete(tableName, keys) {
     }
 }
 
-/* TA BORT QUIZ + relaterade frågor och poäng */
+// Tar bort ett quiz, men också alla tillhörande frågor och poängposter.
+// 1. Verifierar att quizet finns och att den inloggade användaren äger det.
+// 2. Hämtar och raderar frågor i batches.
+// 3. Hämtar och raderar poäng i batches.
+// 4. Tar bort själva quizet.
+// Returnerar hur många poster som raderats totalt.
 export const remove = withAuth(async (event) => {
     const quizId = event.pathParameters?.quizId;
     if (!quizId) return json(400, { error: "quizId required" });
@@ -148,7 +164,7 @@ export const remove = withAuth(async (event) => {
         lastKeyS = page.LastEvaluatedKey;
     } while (lastKeyS);
 
-    // 3) radera quizet
+    // 3) radera själva quizet
     await ddb.send(
         new DeleteCommand({ TableName: tables.quizzes, Key: { quizId } })
     );
