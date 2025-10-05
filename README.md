@@ -107,3 +107,11 @@ Kör övriga requests (frågor, poäng, leaderboard)
 ## Loggar och felsökning
 
 npx serverless logs -f <funktion> -t
+
+# Presentations Videos:
+
+## Arkitektur och design:
+
+## Postman: https://vimeo.com/1124570447?share=copy
+
+## DynamoDB: https://vimeo.com/1124572069?share=copy
